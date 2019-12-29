@@ -1,0 +1,268 @@
+(require 2htdp/universe)
+(require 2htdp/image)
+
+;; Space Invaders
+
+
+;; Constants:
+
+(define WIDTH  300)
+(define HEIGHT 500)
+
+(define INVADER-X-SPEED 1.5)  ;speeds (not velocities) in pixels per tick 
+(define INVADER-Y-SPEED 1.5) 
+(define TANK-SPEED 2) 
+(define MISSILE-SPEED 10)
+
+(define HIT-RANGE 10)
+
+(define INVADE-RATE 100)
+
+(define BACKGROUND (empty-scene WIDTH HEIGHT))
+
+(define INVADER
+  (overlay/xy (ellipse 10 15 "outline" "blue")              ;cockpit cover
+              -5 6
+              (ellipse 20 10 "solid"   "blue")))            ;saucer
+
+(define TANK
+  (overlay/xy (overlay (ellipse 28 8 "solid" "black")       ;tread center
+                       (ellipse 30 10 "solid" "green"))     ;tread outline
+              5 -14
+              (above (rectangle 5 10 "solid" "black")       ;gun
+                     (rectangle 20 10 "solid" "black"))))   ;main body
+
+(define TANK-HEIGHT/2 (/ (image-height TANK) 2))
+
+(define MISSILE (ellipse 5 15 "solid" "red"))
+
+
+
+;; Data Definitions:
+
+(define-struct game (invaders missiles tank)) ;; Game is (make-game  (listof Invader) (listof Missile) Tank) ;; interp. the current state of a space invaders game
+;;         with the current invaders, missiles and tank position
+;; Game constants defined below Missile data definition 
+#; 
+(define (fn-for-game s)
+  (... (fn-for-loinvader (game-invaders s))
+       (fn-for-lom (game-missiles s))
+       (fn-for-tank (game-tank s))))
+
+
+
+(define-struct tank (x dir))
+;; Tank is (make-tank Number Integer[-1, 1]) ;; interp. the tank location is x, HEIGHT - TANK-HEIGHT/2 in screen coordinates
+;;         the tank moves TANK-SPEED pixels per clock tick left if dir -1, right if dir 1
+(define T0 (make-tank (/ WIDTH 2) 1))   ;center going right
+(define T1 (make-tank 50 1))            ;going right
+(define T2 (make-tank 50 -1))           ;going left
+#;
+(define (fn-for-tank t)
+  (... (tank-x t) (tank-dir t)))
+
+
+
+(define-struct invader (x y dx))
+;; Invader is (make-invader Number Number Number) ;; interp. the invader is at (x, y) in screen coordinates
+;;         the invader along x by dx pixels per clock tick
+(define I1 (make-invader 150 100 12))           ;not landed, moving right
+(define I2 (make-invader 150 HEIGHT -10))       ;exactly landed, moving left
+(define I3 (make-invader 150 (+ HEIGHT 10) 10)) ;> landed, moving right 
+#; 
+(define (fn-for-invader invader)
+  (... (invader-x invader) (invader-y invader) (invader-dx invader)))
+
+
+(define-struct missile (x y))
+;; Missile is (make-missile Number Number) ;; interp. the missile's location is x y in screen coordinates
+(define M1 (make-missile 150 300))                       ;not hit U1
+(define M2 (make-missile (invader-x I1) (+ (invader-y I1) 10)))  ;exactly hit U1 (define M3 (make-missile (invader-x I1) (+ (invader-y I1)  5)))  ;> hit U1 #; (define (fn-for-missile m)
+  (... (missile-x m) (missile-y m)))
+
+
+
+(define G0 (make-game empty empty T0))
+(define G1 (make-game empty empty T1))
+(define G2 (make-game (list I1) (list M1) T1)) 
+(define G3 (make-game (list I1 I2) (list M1 M2) T1))
+
+
+;; Functions:
+
+;; game -> game
+;; start the world with (main G0)
+;;
+(define (main game)
+  (big-bang game           ; game
+    (on-tick   tock)       ; game -> game
+    (to-draw   render)     ; game -> Image
+    (stop-when invaderwin?); game -> Boolean
+    (on-key    3keys)))    ; game KeyEvent -> game
+
+
+
+;; game -> game
+;; tick invaders, missles, and the tank. increase positions and remove bullets as they leave the screen, and remove invaders and bullets when they are within HIT-RANGE ;; !!!
+(check-expect (tock G0) (make-game empty empty (make-tank (+ (/ WIDTH 2) TANK-SPEED) 1)))
+(define (tock game) game) ;stub
+(define (tock g)
+  (remove (increment g)))
+
+
+;; game -> Image
+;; render each data type individually, but they will have to be rendered in consession (place on top of eachother) to form the whole scene 
+;; !!!
+;; maybe I should use overlay instead of rendering on top of each other?
+(define (render game) img) ;stub
+(define (render g)
+  (render-loi (game-invaders g)
+       		(render-lom (game-missiles g) (render-tank (game-tank g)))))
+
+;; game -> Boolean
+;; if at least one invader-y > HEIGHT, return true 
+;; !!!
+(define (invaderwin? game) false) ;stub
+(define (invaderwin? g)
+  (invader-more-than-HEIGHT? (game-invaders g)))
+
+
+;; game KeyEvent -> game
+;; if left arrow pressed, change tank-dir to -1, if right, to 1. If space is pressed, add bullet to bullet list at bullet-x = (image-height TANK) and bullet-y = tank-y 
+;; !!!
+(define (3keys game ke) game) ;stub
+(define (3keys g ke)
+  (cond [(key=? ke " ") (... g)]
+	[(key=? ke "left") (... g)]
+	[(key=? ke "right") (... g)]
+        [else g]))
+
+
+;; tock helpers
+
+;; game -> game
+;; increment game
+;;!!!
+(define (increment g) g) ;stub
+(define (increment g)
+  (make-game 	(increment-loi (game-invaders g))
+       		(increment-lom (game-missiles g))
+       		(increment-tank (game-tank g))))
+
+;; game -> game
+;; remove missiles that are off screen or have collided with invaders and remove invaders that have collided with missiles
+;; !!!
+(define (remove g) g) ;stub
+(define (remove g)
+  (make-game 	(remove-loi (game-invaders g))
+       		(remove-lom (game-missiles g))
+       		(game-tank g)))
+
+
+;; tock-increment helpers
+
+	;; loi and invader
+	;; (done)
+
+;; loi -> loi
+;; tock position and possibly direction of each invader in list, add new invader to list at INVADE-RATE (not sure how to do this last part)
+(define (increment-loi loi) loi) ;stub
+(define (increment-loi loi)
+	(cond	[(empty? loi) loi]
+		[else
+		(cons (increment-invader (first loi)) (increment-loi (rest loi)))]))
+
+;; invader -> invader
+;; increment one invader
+(check-expect (increment-invader (make-invader 150 100 12)) (make-invader (+ (* INVADER-X-SPEED 12) 150) (+ INVADER-Y-SPEED 100) 12))
+(check-expect (increment-invader (make-invader WIDTH 100 12)) (make-invader (+ (* INVADER-X-SPEED -12) WIDTH) (+ INVADER-Y-SPEED 100) -12))
+(check-expect (increment-invader (make-invader 2 10 -12)) (make-invader 10 (+ INVADER-Y-SPEED 10) 12))
+(define (increment-invader i) i) ;stub
+(define (increment-invader i)
+	(cond	[(turn-invader? i) (make-invader
+					(turn-invader-x i) (+ INVADER-Y-SPEED (invader-y i)) (* -1 (invader-dx i)))]
+		[else (make-invader
+					(+ (invader-x i) (invader-dx i)) (+ INVADER-Y-SPEED (invader-y i)) (invader-dx i))]))
+
+;; invader -> bool
+;; true if invader bounce off wall on tick
+(check-expect (turn-invader? (make-invader 2 10 -12)) true)
+(check-expect (turn-invader? (make-invader 2 10 12)) false)
+(check-expect (turn-invader? (make-invader WIDTH 100 12)) true)
+(define (turn-invader? i) false) ;stub
+(define (turn-invader? i)
+	(cond 	[(> 0 (+ (invader-x i) (invader-dx invader))) true]
+		[(< WIDTH (+ (invader-x i) (invader-dx invader))) true]
+		[else false]))
+
+;; invader -> Integer
+;; calculate invader-x for an invader that's changing directions
+(define (turn-invader-x i)
+	(cond 	[(< 0 (invader-dx i)) (- WIDTH (- (invader-dx i) (- WIDTH (invader-x i))))]
+		[(>= 0 (invader-dx i)) (* -1 (+ (invader-x i) (invader-dx i)))]
+
+
+	;; lom and missile
+
+;; lom -> lom
+;; tock position and possibly direction of each missile in list
+;; !!!
+(define (increment-lom lom) lom) ;stub
+(define (increment-lom lom)
+	(cond	[(empty? lom) lom]
+		[else
+		(cons (increment-missile (first lom)) (increment-lom (rest lom)))]))
+
+;; missile -> missile
+;; increment one missile
+;; !!!
+(define (increment-missile m) m) ;stub
+
+	;; tank
+
+;; tank -> tank
+;; increment position of tank by TANK-SPEED by direction given by tank-dir. If at a wall (tank-x is 0 or WIDTH) stay there
+;; !!!
+(define (increment-tank t) t) ;stub
+
+
+;; tock-remove helpers
+
+;; loi -> loi
+;; remove invaders that are within HIT-RANGE of any missile
+;; !!!
+(define (remove-loi loi) loi) ;stub
+
+;; lom -> lom
+;; remove missiles that are off screen or within HIT-RANGE of any invader
+;; !!!
+(define (remove-lom lom) lom) ;stub
+
+
+;; render helpers
+
+;; tank -> Image
+;; place tank at current position on top of MTS
+;; !!!
+(define (render-tank t) MTS) ;stub
+
+;; lom Image -> Image
+;; place all missiles on top of the rendered tank on MTS. Input image is the rendered tank
+;; !!!
+(define (render-lom lom MTS) MTS) ;stub 
+
+;; loi Image -> Image
+;; place all invaders on on the rendered missiles on tank on MTS. Input image is the rendered missiles on tank
+;; !!!
+(define (render-loi loi MTS) MTS) ;stub
+
+;; invaderwin? helper
+
+;; loi -> bool
+;; if any invader-y in loi > HEIGHT, return true
+;; !!!
+(define (invader-more-than-HEIGHT? loi) false) ;stub
+
+
+
+

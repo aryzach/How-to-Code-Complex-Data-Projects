@@ -1,0 +1,20 @@
+
+;; natural is one of:
+;;	- empty
+;;	- (cons "A" natural)
+
+(define N0 empty)
+(define N1 (cons "A" N0))
+(define N2 (cons "A" N1))
+(define N3 (cons "A" N2))
+(define N4 (cons "A" N3))
+(define N5 (cons "A" N4))
+(define N6 (cons "A" N5))
+(define N7 (cons "A" N6))
+
+(check-expect (addall N0) N0)
+(check-expect (addall N1) N1)
+(check-expect (addall N3) N6)
+(define (addall n)
+	(cond 	[(empty? n) empty]
+		[else (cond n (addall (rest n)))]))
